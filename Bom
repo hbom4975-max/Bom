@@ -1,0 +1,1637 @@
+-- Primeval Earth Hub UI (อัปเดต: รวมระบบกินเนื้อ & กินพืชอัตโนมัติ เข้าไปในแท็บ ฟอสซิล)
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser")
+local Camera = workspace.CurrentCamera
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- ลบ UI เก่าออกหากมีการรันซ้ำ
+if game:GetService("CoreGui"):FindFirstChild("PrimevalEarthHubUI") then
+    game:GetService("CoreGui").PrimevalEarthHubUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PrimevalEarthHubUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+
+if gethui then
+    ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = game:GetService("CoreGui")
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- จานสี & ฟอนต์สไตล์ Minecraft (Arcade Pixel Font)
+local Theme = {
+    Background = Color3.fromRGB(18, 18, 22),
+    Header = Color3.fromRGB(26, 26, 32),
+    Sidebar = Color3.fromRGB(22, 22, 28),
+    Card = Color3.fromRGB(30, 30, 38),
+    CardHover = Color3.fromRGB(40, 40, 50),
+    Accent = Color3.fromRGB(99, 102, 241),
+    TextPrimary = Color3.fromRGB(240, 240, 245),
+    TextSecondary = Color3.fromRGB(150, 150, 165),
+    ToggleOff = Color3.fromRGB(45, 45, 55),
+    ToggleOn = Color3.fromRGB(99, 102, 241),
+    FontBold = Enum.Font.Arcade,
+    FontMedium = Enum.Font.Arcade
+}
+
+--------------------------------------------------
+-- วงกลม FOV AIMBOT
+--------------------------------------------------
+local AimSettings = {
+    Enabled = false,
+    ShowFOV = false,
+    FOVRadius = 150,
+    Smoothness = 0.2,
+    MaxDistance = 150
+}
+
+local hasTargetInFOV = false 
+
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "FOVCircle"
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+FOVCircle.Size = UDim2.new(0, AimSettings.FOVRadius * 2, 0, AimSettings.FOVRadius * 2)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Visible = false
+FOVCircle.Parent = ScreenGui
+
+local UICornerCircle = Instance.new("UICorner")
+UICornerCircle.CornerRadius = UDim.new(1, 0)
+UICornerCircle.Parent = FOVCircle
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Thickness = 1
+UIStroke.Transparency = 0.2
+UIStroke.Parent = FOVCircle
+
+--------------------------------------------------
+-- 1. หน้าต่างเมนูโหลด (MINI LOADING MENU)
+--------------------------------------------------
+local LoadingFrame = Instance.new("Frame")
+LoadingFrame.Name = "LoadingFrame"
+LoadingFrame.Size = UDim2.new(0, 320, 0, 130)
+LoadingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+LoadingFrame.BackgroundColor3 = Theme.Background
+LoadingFrame.BorderSizePixel = 0
+LoadingFrame.Parent = ScreenGui
+
+local LoadingScale = Instance.new("UIScale")
+LoadingScale.Scale = 1
+LoadingScale.Parent = LoadingFrame
+
+local LoadingCorner = Instance.new("UICorner")
+LoadingCorner.CornerRadius = UDim.new(0, 12)
+LoadingCorner.Parent = LoadingFrame
+
+local LoadingStroke = Instance.new("UIStroke")
+LoadingStroke.Color = Theme.Accent
+LoadingStroke.Thickness = 1.5
+LoadingStroke.Parent = LoadingFrame
+
+local LoadingTitle = Instance.new("TextLabel")
+LoadingTitle.Size = UDim2.new(1, 0, 0, 30)
+LoadingTitle.Position = UDim2.new(0, 0, 0, 12)
+LoadingTitle.Text = "PRIMEVAL EARTH <font color=\"#6366f1\">HUB</font>"
+LoadingTitle.RichText = true
+LoadingTitle.Font = Theme.FontBold
+LoadingTitle.TextSize = 16
+LoadingTitle.TextColor3 = Theme.TextPrimary
+LoadingTitle.BackgroundTransparency = 1
+LoadingTitle.Parent = LoadingFrame
+
+local LoadingStatus = Instance.new("TextLabel")
+LoadingStatus.Size = UDim2.new(1, -40, 0, 20)
+LoadingStatus.Position = UDim2.new(0, 20, 0, 48)
+LoadingStatus.Text = "กำลังเริ่มต้นระบบ UI..."
+LoadingStatus.Font = Theme.FontMedium
+LoadingStatus.TextSize = 12
+LoadingStatus.TextColor3 = Theme.TextSecondary
+LoadingStatus.TextXAlignment = Enum.TextXAlignment.Left
+LoadingStatus.BackgroundTransparency = 1
+LoadingStatus.Parent = LoadingFrame
+
+local PercentLabel = Instance.new("TextLabel")
+PercentLabel.Size = UDim2.new(1, -40, 0, 20)
+PercentLabel.Position = UDim2.new(0, 20, 0, 48)
+PercentLabel.Text = "0%"
+PercentLabel.Font = Theme.FontBold
+PercentLabel.TextSize = 12
+PercentLabel.TextColor3 = Theme.Accent
+PercentLabel.TextXAlignment = Enum.TextXAlignment.Right
+PercentLabel.BackgroundTransparency = 1
+PercentLabel.Parent = LoadingFrame
+
+local BarTrack = Instance.new("Frame")
+BarTrack.Size = UDim2.new(1, -40, 0, 10)
+BarTrack.Position = UDim2.new(0, 20, 0, 78)
+BarTrack.BackgroundColor3 = Theme.Card
+BarTrack.BorderSizePixel = 0
+BarTrack.Parent = LoadingFrame
+
+local BarCorner = Instance.new("UICorner")
+BarCorner.CornerRadius = UDim.new(1, 0)
+BarCorner.Parent = BarTrack
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = Theme.Accent
+BarFill.BorderSizePixel = 0
+BarFill.Parent = BarTrack
+
+local FillCorner = Instance.new("UICorner")
+FillCorner.CornerRadius = UDim.new(1, 0)
+FillCorner.Parent = BarFill
+
+--------------------------------------------------
+-- 2. สร้างโครงสร้างเมนูหลัก (MAIN MENU)
+--------------------------------------------------
+_G.AutoDrinkRunning = false
+_G.AutoRestRunning = false
+_G.AutoZoneRunning = false
+_G.AutoFarmAmmo = false
+_G.AutoAttackRunning = false
+_G.AutoEatActive = false -- กินเนื้ออัตโนมัติ
+_G.AutoHerbActive = false -- กินพืชอัตโนมัติ
+_G.CurrentQuest = "None"
+
+local EspSettings = {
+    Enabled = false,
+    ShowName = true,
+    ShowHealth = true,
+    ShowDistance = true
+}
+
+local ActiveSlider = nil
+
+local function AttachButtonAnimation(button, normalColor, hoverColor)
+    local Scale = Instance.new("UIScale")
+    Scale.Scale = 1
+    Scale.Parent = button
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(Scale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1.03}):Play()
+        if hoverColor then
+            TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = hoverColor}):Play()
+        end
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(Scale, TweenInfo.new(0.15), {Scale = 1}):Play()
+        if normalColor then
+            TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = normalColor}):Play()
+        end
+    end)
+
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(Scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.92}):Play()
+        end
+    end)
+
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+        end
+    end)
+end
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 500, 0, 340)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.BackgroundColor3 = Theme.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+local MainScale = Instance.new("UIScale")
+MainScale.Scale = 0
+MainScale.Parent = MainFrame
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(45, 45, 55)
+MainStroke.Thickness = 1
+MainStroke.Parent = MainFrame
+
+local dragging, dragInput, dragStart, startPos
+local function updateDrag(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 42)
+TopBar.BackgroundColor3 = Theme.Header
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 12)
+TopBarCorner.Parent = TopBar
+
+local TopBarCover = Instance.new("Frame")
+TopBarCover.Size = UDim2.new(1, 0, 0, 10)
+TopBarCover.Position = UDim2.new(0, 0, 1, -10)
+TopBarCover.BackgroundColor3 = Theme.Header
+TopBarCover.BorderSizePixel = 0
+TopBarCover.Parent = TopBar
+
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+TopBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then updateDrag(input) end
+end)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 320, 1, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
+Title.Text = "PRIMEVAL EARTH <font color=\"#6366f1\">HUB</font>"
+Title.RichText = true
+Title.Font = Theme.FontBold
+Title.TextSize = 16
+Title.TextColor3 = Theme.TextPrimary
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.BackgroundTransparency = 1
+Title.Parent = TopBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -36, 0.5, -14)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 22
+CloseBtn.Font = Theme.FontBold
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseBtn
+
+AttachButtonAnimation(CloseBtn, Color3.fromRGB(239, 68, 68), Color3.fromRGB(220, 38, 38))
+
+CloseBtn.MouseButton1Click:Connect(function()
+    local tween = TweenService:Create(MainScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+    tween:Play()
+    tween.Completed:Wait()
+    ScreenGui:Destroy()
+end)
+
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenMenuBtn"
+OpenBtn.Size = UDim2.new(0, 48, 0, 48)
+OpenBtn.Position = UDim2.new(0, 15, 0.4, 0)
+OpenBtn.BackgroundColor3 = Theme.Header
+OpenBtn.Text = ""
+OpenBtn.BorderSizePixel = 0
+OpenBtn.Active = true
+OpenBtn.Draggable = true
+OpenBtn.Visible = false
+OpenBtn.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenBtn
+
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Color = Theme.Accent
+OpenStroke.Thickness = 2
+OpenStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+OpenStroke.Parent = OpenBtn
+
+local OpenGradient = Instance.new("UIGradient")
+OpenGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 35, 45)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 18, 24))
+})
+OpenGradient.Rotation = 45
+OpenGradient.Parent = OpenBtn
+
+local LogoLabel = Instance.new("TextLabel")
+LogoLabel.Size = UDim2.new(1, 0, 1, 0)
+LogoLabel.BackgroundTransparency = 1
+LogoLabel.RichText = true
+LogoLabel.Text = "P<font color=\"#6366f1\">n</font>"
+LogoLabel.Font = Theme.FontBold
+LogoLabel.TextSize = 22
+LogoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+LogoLabel.TextXAlignment = Enum.TextXAlignment.Center
+LogoLabel.TextYAlignment = Enum.TextYAlignment.Center
+LogoLabel.Parent = OpenBtn
+
+AttachButtonAnimation(OpenBtn)
+
+local isMenuOpen = true
+OpenBtn.MouseButton1Click:Connect(function()
+    isMenuOpen = not isMenuOpen
+    if isMenuOpen then
+        MainFrame.Visible = true
+        TweenService:Create(MainScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    else
+        local tw = TweenService:Create(MainScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+        tw:Play()
+        tw.Completed:Connect(function()
+            if not isMenuOpen then MainFrame.Visible = false end
+        end)
+    end
+end)
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 130, 1, -42)
+Sidebar.Position = UDim2.new(0, 0, 0, 42)
+Sidebar.BackgroundColor3 = Theme.Sidebar
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SidebarLayout = Instance.new("UIListLayout")
+SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SidebarLayout.Padding = UDim.new(0, 6)
+SidebarLayout.Parent = Sidebar
+
+local SidebarPadding = Instance.new("UIPadding")
+SidebarPadding.PaddingTop = UDim.new(0, 10)
+SidebarPadding.PaddingLeft = UDim.new(0, 10)
+SidebarPadding.PaddingRight = UDim.new(0, 10)
+SidebarPadding.Parent = Sidebar
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Size = UDim2.new(1, -130, 1, -42)
+ContentContainer.Position = UDim2.new(0, 130, 0, 42)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
+
+local Tabs = {}
+
+local function CreateTab(name, icon)
+    local TabBtn = Instance.new("TextButton")
+    TabBtn.Size = UDim2.new(1, 0, 0, 36)
+    TabBtn.BackgroundColor3 = Theme.Background
+    TabBtn.BackgroundTransparency = 1
+    TabBtn.Text = icon .. " " .. name
+    TabBtn.TextColor3 = Theme.TextSecondary
+    TabBtn.Font = Theme.FontMedium
+    TabBtn.TextSize = 13
+    TabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    TabBtn.Parent = Sidebar
+
+    local TabBtnPadding = Instance.new("UIPadding")
+    TabBtnPadding.PaddingLeft = UDim.new(0, 8)
+    TabBtnPadding.Parent = TabBtn
+
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 8)
+    TabCorner.Parent = TabBtn
+
+    AttachButtonAnimation(TabBtn)
+
+    local TabContent = Instance.new("ScrollingFrame")
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.BackgroundTransparency = 1
+    TabContent.BorderSizePixel = 0
+    TabContent.ScrollBarThickness = 3
+    TabContent.ScrollBarImageColor3 = Theme.Accent
+    TabContent.Visible = false
+    TabContent.Parent = ContentContainer
+
+    local ContentLayout = Instance.new("UIListLayout")
+    ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ContentLayout.Padding = UDim.new(0, 8)
+    ContentLayout.Parent = TabContent
+
+    local ContentPadding = Instance.new("UIPadding")
+    ContentPadding.PaddingTop = UDim.new(0, 10)
+    ContentPadding.PaddingLeft = UDim.new(0, 10)
+    ContentPadding.PaddingRight = UDim.new(0, 10)
+    ContentPadding.PaddingBottom = UDim.new(0, 10)
+    ContentPadding.Parent = TabContent
+
+    ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+    end)
+
+    TabBtn.MouseButton1Click:Connect(function()
+        for _, t in pairs(Tabs) do
+            TweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Theme.TextSecondary}):Play()
+            t.Frame.Visible = false
+        end
+        TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, BackgroundColor3 = Theme.Card, TextColor3 = Theme.TextPrimary}):Play()
+        TabContent.Visible = true
+    end)
+
+    table.insert(Tabs, {Button = TabBtn, Frame = TabContent})
+
+    if #Tabs == 1 then
+        TabBtn.BackgroundTransparency = 0
+        TabBtn.BackgroundColor3 = Theme.Card
+        TabBtn.TextColor3 = Theme.TextPrimary
+        TabContent.Visible = true
+    end
+
+    return TabContent
+end
+
+local UI = {}
+
+function UI.AddLabel(parentTab, text)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, 36)
+    Card.BackgroundColor3 = Theme.Card
+    Card.Parent = parentTab
+
+    local CardCorner = Instance.new("UICorner")
+    CardCorner.CornerRadius = UDim.new(0, 8)
+    CardCorner.Parent = Card
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -20, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(255, 255, 0)
+    Label.Font = Theme.FontBold
+    Label.TextSize = 13
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.BackgroundTransparency = 1
+    Label.Parent = Card
+
+    return Label
+end
+
+function UI.AddButton(parentTab, text, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 36)
+    Btn.BackgroundColor3 = Theme.Card
+    Btn.Text = text
+    Btn.TextColor3 = Theme.TextPrimary
+    Btn.Font = Theme.FontMedium
+    Btn.TextSize = 13
+    Btn.BorderSizePixel = 0
+    Btn.Parent = parentTab
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.Parent = Btn
+
+    local BtnStroke = Instance.new("UIStroke")
+    BtnStroke.Color = Theme.Accent
+    BtnStroke.Transparency = 0.7
+    BtnStroke.Parent = Btn
+
+    AttachButtonAnimation(Btn, Theme.Card, Theme.CardHover)
+
+    Btn.MouseButton1Click:Connect(function()
+        TweenService:Create(BtnStroke, TweenInfo.new(0.15), {Transparency = 0.2}):Play()
+        task.wait(0.15)
+        TweenService:Create(BtnStroke, TweenInfo.new(0.15), {Transparency = 0.7}):Play()
+        task.spawn(callback)
+    end)
+
+    return Btn
+end
+
+function UI.AddToggle(parentTab, text, default, callback)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, 42)
+    Card.BackgroundColor3 = Theme.Card
+    Card.Parent = parentTab
+
+    local CardCorner = Instance.new("UICorner")
+    CardCorner.CornerRadius = UDim.new(0, 8)
+    CardCorner.Parent = Card
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -60, 1, 0)
+    Label.Position = UDim2.new(0, 12, 0, 0)
+    Label.Text = text
+    Label.TextColor3 = Theme.TextPrimary
+    Label.Font = Theme.FontMedium
+    Label.TextSize = 13
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.BackgroundTransparency = 1
+    Label.Parent = Card
+
+    local SwitchBg = Instance.new("Frame")
+    SwitchBg.Size = UDim2.new(0, 40, 0, 20)
+    SwitchBg.Position = UDim2.new(1, -50, 0.5, -10)
+    SwitchBg.BackgroundColor3 = default and Theme.ToggleOn or Theme.ToggleOff
+    SwitchBg.Parent = Card
+
+    local SwitchCorner = Instance.new("UICorner")
+    SwitchCorner.CornerRadius = UDim.new(1, 0)
+    SwitchCorner.Parent = SwitchBg
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 14, 0, 14)
+    Knob.Position = default and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.Parent = SwitchBg
+
+    local KnobCorner = Instance.new("UICorner")
+    KnobCorner.CornerRadius = UDim.new(1, 0)
+    KnobCorner.Parent = Knob
+
+    local state = default
+    local ClickBtn = Instance.new("TextButton")
+    ClickBtn.Size = UDim2.new(1, 0, 1, 0)
+    ClickBtn.BackgroundTransparency = 1
+    ClickBtn.Text = ""
+    ClickBtn.Parent = Card
+
+    AttachButtonAnimation(ClickBtn)
+
+    ClickBtn.MouseButton1Click:Connect(function()
+        state = not state
+        local targetPos = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        local targetColor = state and Theme.ToggleOn or Theme.ToggleOff
+        
+        TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+        TweenService:Create(SwitchBg, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+        
+        task.spawn(callback, state)
+    end)
+end
+
+function UI.AddSlider(parentTab, text, min, max, default, callback)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, 54)
+    Card.BackgroundColor3 = Theme.Card
+    Card.Parent = parentTab
+
+    local CardCorner = Instance.new("UICorner")
+    CardCorner.CornerRadius = UDim.new(0, 8)
+    CardCorner.Parent = Card
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -60, 0, 24)
+    Label.Position = UDim2.new(0, 12, 0, 4)
+    Label.Text = text
+    Label.TextColor3 = Theme.TextPrimary
+    Label.Font = Theme.FontMedium
+    Label.TextSize = 13
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.BackgroundTransparency = 1
+    Label.Parent = Card
+
+    local ValLabel = Instance.new("TextLabel")
+    ValLabel.Size = UDim2.new(0, 50, 0, 24)
+    ValLabel.Position = UDim2.new(1, -60, 0, 4)
+    ValLabel.Text = tostring(default)
+    ValLabel.TextColor3 = Theme.Accent
+    ValLabel.Font = Theme.FontBold
+    ValLabel.TextSize = 13
+    ValLabel.TextXAlignment = Enum.TextXAlignment.Right
+    ValLabel.BackgroundTransparency = 1
+    ValLabel.Parent = Card
+
+    local SliderTrack = Instance.new("Frame")
+    SliderTrack.Size = UDim2.new(1, -24, 0, 10)
+    SliderTrack.Position = UDim2.new(0, 12, 0, 34)
+    SliderTrack.BackgroundColor3 = Theme.ToggleOff
+    SliderTrack.Parent = Card
+
+    local TrackCorner = Instance.new("UICorner")
+    TrackCorner.CornerRadius = UDim.new(1, 0)
+    TrackCorner.Parent = SliderTrack
+
+    local SliderFill = Instance.new("Frame")
+    local startScale = math.clamp((default - min) / (max - min), 0, 1)
+    SliderFill.Size = UDim2.new(startScale, 0, 1, 0)
+    SliderFill.BackgroundColor3 = Theme.Accent
+    SliderFill.Parent = SliderTrack
+
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = SliderFill
+
+    local isDragging = false
+
+    local function updateSlider(input)
+        local pos = math.clamp((input.Position.X - SliderTrack.AbsolutePosition.X) / SliderTrack.AbsoluteSize.X, 0, 1)
+        TweenService:Create(SliderFill, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pos, 0, 1, 0)}):Play()
+        local val = math.floor(min + (max - min) * pos)
+        ValLabel.Text = tostring(val)
+        task.spawn(callback, val)
+    end
+
+    SliderTrack.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            if ActiveSlider == nil then
+                ActiveSlider = Card
+                isDragging = true
+                updateSlider(input)
+            end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isDragging and ActiveSlider == Card then
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                updateSlider(input)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if isDragging and ActiveSlider == Card then
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = false
+                ActiveSlider = nil
+            end
+        end
+    end)
+end
+
+--------------------------------------------------
+-- 3. ระบบทำงานหลัก ESP, AIMBOT, AUTO ATTACK & AUTO เก็บกระสุน
+--------------------------------------------------
+local targetAmmoCFrame = CFrame.new(637.3, 94.3, -56.5)
+local ammoMaxDistance = 15
+
+local function triggerAttack()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return end
+
+    for _, gui in pairs(playerGui:GetDescendants()) do
+        if (gui:IsA("ImageButton") or gui:IsA("TextButton")) and gui.Name == "Attack" then
+            if getconnections then
+                for _, conn in pairs(getconnections(gui.Activated)) do 
+                    conn:Fire() 
+                end
+                for _, conn in pairs(getconnections(gui.MouseButton1Click)) do 
+                    conn:Fire() 
+                end
+            end
+        end
+    end
+end
+
+local function getPromptPosition(prompt)
+    local parent = prompt.Parent
+    if parent:IsA("BasePart") then
+        return parent.Position
+    elseif parent:IsA("Attachment") then
+        return parent.WorldPosition
+    end
+    return nil
+end
+
+local function isFullyVisible(gui)
+    if not gui or not gui:IsDescendantOf(game) then return false end
+    if gui.AbsoluteSize.X <= 0 or gui.AbsoluteSize.Y <= 0 then return false end
+    
+    local current = gui
+    while current and current:IsA("GuiObject") do
+        if not current.Visible then return false end
+        if current:IsA("CanvasGroup") and current.GroupTransparency >= 0.9 then return false end
+        current = current.Parent
+    end
+    
+    if current and current:IsA("ScreenGui") and not current.Enabled then
+        return false
+    end
+    return true
+end
+
+local function checkAmmoStatus()
+    local char = LocalPlayer.Character
+    if not char then return nil, nil, "ยังไม่โหลดตัวละคร" end
+
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then
+        return nil, nil, "กรุณาถือปืนในมือก่อน!"
+    end
+
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return nil, nil, "ไม่พบ PlayerGui" end
+
+    local screenWidth = Camera and Camera.ViewportSize.X or 1000
+    local screenHeight = Camera and Camera.ViewportSize.Y or 1000
+    local rightSideX = screenWidth * 0.5
+    local bottomSideY = screenHeight * 0.5
+
+    local currentAmmo = nil
+    local reserveAmmo = nil
+
+    for _, gui in pairs(playerGui:GetDescendants()) do
+        if (gui:IsA("TextLabel") or gui:IsA("TextBox") or gui:IsA("TextButton")) and isFullyVisible(gui) then
+            if gui.AbsolutePosition.X >= rightSideX and gui.AbsolutePosition.Y >= bottomSideY then
+                local rawText = gui.Text
+                if rawText and rawText ~= "" and gui.TextTransparency < 0.8 then
+                    local cleanText = string.gsub(rawText, "<[^> penalty]->", "")
+                    cleanText = string.match(cleanText, "^%s*(.-)%s*$") or cleanText
+
+                    local cur, res = string.match(cleanText, "^(%d+)%s*[/‒│|]%s*(%d+)$")
+                    if cur and res then
+                        return tonumber(cur), tonumber(res), "กระสุน: " .. cleanText
+                    end
+
+                    local resOnly = string.match(cleanText, "^[/‒│|]%s*(%d+)$")
+                    if resOnly then
+                        reserveAmmo = tonumber(resOnly)
+                    end
+
+                    local curOnly = string.match(cleanText, "^(%d+)$")
+                    if curOnly and tonumber(curOnly) <= 200 then
+                        currentAmmo = tonumber(curOnly)
+                    end
+                end
+            end
+        end
+    end
+
+    if currentAmmo ~= nil and reserveAmmo ~= nil then
+        return currentAmmo, reserveAmmo, string.format("กระสุน: %02d/%d", currentAmmo, reserveAmmo)
+    elseif reserveAmmo ~= nil then
+        return currentAmmo or 0, reserveAmmo, "กระสุนสำรอง: /" .. reserveAmmo
+    end
+
+    return nil, nil, "กำลังสแกน UI กระสุน..."
+end
+
+local function getTorso(character)
+    if not character then return nil end
+    return character:FindFirstChild("UpperTorso") 
+        or character:FindFirstChild("Torso") 
+        or character:FindFirstChild("HumanoidRootPart")
+        or character:FindFirstChild("Head")
+end
+
+local function getClosestEnemyInFOV()
+    if not AimSettings.Enabled then return nil end
+
+    local closestChar = nil
+    local shortestWorldDist = AimSettings.MaxDistance
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            local torso = getTorso(char)
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+            if humanoid and humanoid.Health > 0 and torso then
+                local worldDistance = (Camera.CFrame.Position - torso.Position).Magnitude
+                
+                if worldDistance <= AimSettings.MaxDistance then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(torso.Position)
+                    if onScreen and screenPos.Z > 0 then
+                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        
+                        if screenDist <= AimSettings.FOVRadius then
+                            if worldDistance < shortestWorldDist then
+                                shortestWorldDist = worldDistance
+                                closestChar = char
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestChar
+end
+
+RunService:BindToRenderStep("AimbotSystem", Enum.RenderPriority.Camera.Value + 100, function()
+    if not AimSettings.Enabled then
+        UIStroke.Color = Color3.fromRGB(255, 255, 255)
+        hasTargetInFOV = false
+        return
+    end
+
+    local target = getClosestEnemyInFOV()
+    if target then
+        hasTargetInFOV = true
+        local targetTorso = getTorso(target)
+        UIStroke.Color = Color3.fromRGB(255, 50, 50)
+
+        if targetTorso then
+            local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, targetTorso.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSettings.Smoothness)
+        end
+    else
+        hasTargetInFOV = false
+        UIStroke.Color = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+
+    local function SetupCharacter(char)
+        if not char then return end
+        local head = char:WaitForChild("Head", 5)
+        local humanoid = char:WaitForChild("Humanoid", 5)
+        if not head or not humanoid then return end
+
+        if head:FindFirstChild("PlayerESP") then
+            head.PlayerESP:Destroy()
+        end
+
+        local bgui = Instance.new("BillboardGui")
+        bgui.Name = "PlayerESP"
+        bgui.Adornee = head
+        bgui.Size = UDim2.new(0, 200, 0, 50)
+        bgui.StudsOffset = Vector3.new(0, 2.5, 0)
+        bgui.AlwaysOnTop = true
+        bgui.Parent = head
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+        textLabel.TextStrokeTransparency = 0
+        textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.Font = Theme.FontBold
+        textLabel.TextSize = 13
+        textLabel.Parent = bgui
+
+        RunService.RenderStepped:Connect(function()
+            if not char or not char.Parent or not humanoid or humanoid.Health <= 0 or not EspSettings.Enabled then
+                bgui.Enabled = false
+                return
+            end
+
+            bgui.Enabled = true
+            local textParts = {}
+
+            if EspSettings.ShowName then
+                table.insert(textParts, player.DisplayName)
+            end
+
+            if EspSettings.ShowHealth then
+                local hp = math.floor(humanoid.Health)
+                local maxHp = math.floor(humanoid.MaxHealth)
+                table.insert(textParts, string.format("[%d/%d HP]", hp, maxHp))
+            end
+
+            if EspSettings.ShowDistance and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude)
+                table.insert(textParts, string.format("[%dm]", dist))
+            end
+
+            textLabel.Text = table.concat(textParts, " | ")
+        end)
+    end
+
+    if player.Character then
+        SetupCharacter(player.Character)
+    end
+    player.CharacterAdded:Connect(SetupCharacter)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    CreateESP(p)
+end
+Players.PlayerAdded:Connect(CreateESP)
+
+local flyEnabled = false
+local flySpeed = 50
+local flyAtt, flyLV, flyAG
+local flyRenderConnection = nil
+
+local function cleanupFly()
+    if flyRenderConnection then
+        flyRenderConnection:Disconnect()
+        flyRenderConnection = nil
+    end
+    if flyLV then flyLV:Destroy() flyLV = nil end
+    if flyAG then flyAG:Destroy() flyAG = nil end
+    if flyAtt then flyAtt:Destroy() flyAtt = nil end
+end
+
+local function stopFly()
+    flyEnabled = false
+    cleanupFly()
+end
+
+local function startFly()
+    cleanupFly()
+    flyEnabled = true
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if not hrp or not flyEnabled then return end
+
+    flyAtt = Instance.new("Attachment", hrp)
+
+    flyLV = Instance.new("LinearVelocity")
+    flyLV.Attachment0 = flyAtt
+    flyLV.MaxForce = math.huge
+    flyLV.VectorVelocity = Vector3.new(0, 0, 0)
+    flyLV.Parent = hrp
+
+    flyAG = Instance.new("AlignOrientation")
+    flyAG.Attachment0 = flyAtt
+    flyAG.MaxTorque = math.huge
+    flyAG.Responsiveness = 200
+    flyAG.Parent = hrp
+
+    flyRenderConnection = RunService.RenderStepped:Connect(function()
+        local currentChar = LocalPlayer.Character
+        local currentHRP = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+        local humanoid = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+
+        if not flyEnabled or not currentChar or not currentChar.Parent or not currentHRP or not humanoid or humanoid.Health <= 0 then
+            cleanupFly()
+            return
+        end
+
+        if not flyLV or not flyAG or flyLV.Parent ~= currentHRP or flyAG.Parent ~= currentHRP then
+            cleanupFly()
+            return
+        end
+
+        local moveDir = humanoid.MoveDirection
+        local targetVel = Vector3.new()
+        if moveDir.Magnitude > 0 then
+            local camCF = Camera.CFrame
+            local camLook = camCF.LookVector
+            local camRight = camCF.RightVector
+            local flatLook = Vector3.new(camLook.X, 0, camLook.Z).Unit
+            local flatRight = Vector3.new(camRight.X, 0, camRight.Z).Unit
+            local lookDot = moveDir:Dot(camLook)
+            local rightDot = moveDir:Dot(camRight)
+            targetVel = (flatLook * lookDot + flatRight * rightDot + Vector3.new(0, camLook.Y * math.abs(lookDot), 0)).Unit * flySpeed
+        else
+            targetVel = Vector3.new(0, 0, 0)
+        end
+
+        flyLV.VectorVelocity = targetVel
+        flyAG.CFrame = Camera.CFrame
+    end)
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if flyEnabled then
+        task.wait(0.5)
+        if flyEnabled then
+            startFly()
+        end
+    end
+end)
+
+--------------------------------------------------
+-- 4. สร้างแท็บเมนูและฟังก์ชันการใช้งาน
+--------------------------------------------------
+local MovementTab = CreateTab("การเคลื่อนที่", "⚡")
+local TeleportTab = CreateTab("วาร์ป/วาร์ปหาคน", "📍")
+local EspTab = CreateTab("มองทะลุ (ESP)", "👁️")
+local PvpTab = CreateTab("ระบบ PVP", "⚔️")
+local FossilsTab = CreateTab("ฟอสซิล/ฟาร์ม", "🦴")
+local VisualsTab = CreateTab("ตั้งค่าเพิ่มเติม", "⚙️")
+
+local targetWalkSpeed = 16
+RunService.Stepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and targetWalkSpeed > 16 then
+            if hum.WalkSpeed ~= targetWalkSpeed then
+                hum.WalkSpeed = targetWalkSpeed
+            end
+        end
+    end)
+end)
+
+UI.AddSlider(MovementTab, "ความเร็วการเดิน", 16, 200, 16, function(value)
+    targetWalkSpeed = value
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.WalkSpeed = value end
+end)
+
+UI.AddSlider(MovementTab, "แรงกระโดด (Jump Power)", 50, 300, 50, function(value)
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then 
+        hum.UseJumpPower = true
+        hum.JumpPower = value 
+    end
+end)
+
+UI.AddToggle(MovementTab, "เปิด/ปิด การบิน (Fly)", false, function(state)
+    if state then startFly() else stopFly() end
+end)
+
+UI.AddSlider(MovementTab, "ความเร็วในการบิน (Speed)", 10, 150, 50, function(value)
+    flySpeed = value
+end)
+
+local noclipConn = nil
+UI.AddToggle(MovementTab, "เดินทะลุกำแพง (Noclip)", false, function(state)
+    if state then
+        noclipConn = RunService.Stepped:Connect(function()
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
+        end)
+    else
+        if noclipConn then noclipConn:Disconnect() end
+    end
+end)
+
+-- แท็บ Teleport
+local PlayerListContainer = Instance.new("Frame")
+PlayerListContainer.Size = UDim2.new(1, 0, 0, 0)
+PlayerListContainer.BackgroundTransparency = 1
+PlayerListContainer.Parent = TeleportTab
+
+local PlayerListLayout = Instance.new("UIListLayout")
+PlayerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PlayerListLayout.Padding = UDim.new(0, 6)
+PlayerListLayout.Parent = PlayerListContainer
+
+PlayerListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    PlayerListContainer.Size = UDim2.new(1, 0, 0, PlayerListLayout.AbsoluteContentSize.Y)
+end)
+
+local function RefreshPlayerList()
+    for _, child in ipairs(PlayerListContainer:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("Frame") then child:Destroy() end
+    end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local displayName = plr.DisplayName
+            local userName = plr.Name
+            local btnText = "📍 " .. displayName .. " (@" .. userName .. ")"
+
+            UI.AddButton(PlayerListContainer, btnText, function()
+                if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local myChar = LocalPlayer.Character
+                    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                    if myHRP then
+                        myHRP.CFrame = plr.Character.HumanoidRootPart.CFrame * CFrame.new(0, 2, 2)
+                    end
+                end
+            end)
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(RefreshPlayerList)
+Players.PlayerRemoving:Connect(RefreshPlayerList)
+task.spawn(RefreshPlayerList)
+
+-- แท็บ ESP
+UI.AddToggle(EspTab, "เปิดใช้งาน ESP ทั้งหมด", EspSettings.Enabled, function(state) EspSettings.Enabled = state end)
+UI.AddToggle(EspTab, "แสดงชื่อผู้เล่น", EspSettings.ShowName, function(state) EspSettings.ShowName = state end)
+UI.AddToggle(EspTab, "แสดงหลอดเลือด (HP)", EspSettings.ShowHealth, function(state) EspSettings.ShowHealth = state end)
+UI.AddToggle(EspTab, "แสดงระยะห่าง (เมตร)", EspSettings.ShowDistance, function(state) EspSettings.ShowDistance = state end)
+
+-- แท็บ PVP
+UI.AddToggle(PvpTab, "โจมตีอัตโนมัติ (ยิงเฉพาะเมื่ออยู่ใน FOV)", false, function(state)
+    _G.AutoAttackRunning = state
+end)
+
+UI.AddToggle(PvpTab, "เปิดใช้ Aimbot (ล็อคเป้า)", false, function(state)
+    AimSettings.Enabled = state
+    FOVCircle.Visible = AimSettings.Enabled and AimSettings.ShowFOV
+end)
+
+UI.AddToggle(PvpTab, "แสดงวงกลม FOV", false, function(state)
+    AimSettings.ShowFOV = state
+    FOVCircle.Visible = AimSettings.Enabled and AimSettings.ShowFOV
+end)
+
+UI.AddSlider(PvpTab, "ขนาดวงกลม FOV", 30, 200, 150, function(value)
+    AimSettings.FOVRadius = value
+    FOVCircle.Size = UDim2.new(0, value * 2, 0, value * 2)
+end)
+
+UI.AddSlider(PvpTab, "ความนุ่มนวลการล็อค (Smoothness)", 1, 10, 2, function(value)
+    AimSettings.Smoothness = value / 10
+end)
+
+local AmmoStatusLabel = UI.AddLabel(PvpTab, "สถานะกระสุน: กำลังรอ...")
+
+UI.AddToggle(PvpTab, "เก็บกระสุนอัตโนมัติ (เก็บ 2 รอบ)", false, function(state)
+    _G.AutoFarmAmmo = state
+    if not state then
+        AmmoStatusLabel.Text = "สถานะกระสุน: ปิดใช้งานแล้ว"
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.Anchored = false
+        end
+    end
+end)
+
+-- แท็บ Fossils (รวมการกินเนื้อ, กินพืช & ฟีเจอร์เควสต์)
+local QuestStatusLabel = UI.AddLabel(FossilsTab, "เควสต์ปัจจุบัน: กำลังรอ...")
+UI.AddToggle(FossilsTab, "กินเนื้ออัตโนมัติ (Auto Eat Meat)", false, function(state) _G.AutoEatActive = state end)
+UI.AddToggle(FossilsTab, "กินพืชอัตโนมัติ (Auto Herb)", false, function(state) _G.AutoHerbActive = state end)
+UI.AddToggle(FossilsTab, "ดื่มน้ำอัตโนมัติ (Auto Drink)", false, function(state) _G.AutoDrinkRunning = state end)
+UI.AddToggle(FossilsTab, "พักผ่อนอัตโนมัติ (Auto Rest)", false, function(state) _G.AutoRestRunning = state end)
+UI.AddToggle(FossilsTab, "ยึดโซนอัตโนมัติ (Auto Zone)", false, function(state) _G.AutoZoneRunning = state end)
+
+-- แท็บ ตั้งค่าเพิ่มเติม
+UI.AddToggle(VisualsTab, "เปิดแสงสว่างตอนกลางคืน (Fullbright)", false, function(state)
+    if state then
+        game:GetService("Lighting").Brightness = 2
+        game:GetService("Lighting").ClockTime = 14
+        game:GetService("Lighting").GlobalShadows = false
+    else
+        game:GetService("Lighting").Brightness = 1
+        game:GetService("Lighting").GlobalShadows = true
+    end
+end)
+
+local lowServerBtn
+lowServerBtn = UI.AddButton(VisualsTab, "ย้ายไปเซิร์ฟเวอร์คนน้อย (Low Server)", function()
+    local HttpService = game:GetService("HttpService")
+    local TeleportService = game:GetService("TeleportService")
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+
+    lowServerBtn.Text = "กำลังค้นหาเซิร์ฟเวอร์..."
+    local success, result = pcall(function()
+        return game:HttpGet("https://games.roblox.com/v1/games/" .. placeId .. "/servers/0?sortOrder=Asc&limit=100")
+    end)
+
+    if success and result then
+        local decoded = HttpService:JSONDecode(result)
+        if decoded and decoded.data then
+            for _, server in ipairs(decoded.data) do
+                if server.id ~= jobId and server.playing < server.maxPlayers and server.playing > 0 then
+                    lowServerBtn.Text = "กำลังย้ายเซิร์ฟเวอร์ (" .. server.playing .. " คน)..."
+                    TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
+                    return
+                end
+            end
+        end
+    end
+    lowServerBtn.Text = "ไม่พบเซิร์ฟเวอร์ที่เหมาะสม!"
+    task.wait(2)
+    lowServerBtn.Text = "ย้ายไปเซิร์ฟเวอร์คนน้อย (Low Server)"
+end)
+
+UI.AddButton(VisualsTab, "เกิดใหม่/รีเซ็ตตัวละคร (Reset)", function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = 0
+    end
+end)
+
+--------------------------------------------------
+-- 5. ระบบเบื้องหลัง (AUTO ATTACK, เก็บกระสุน, ฟอสซิล, กินเนื้อ/พืช & ANTI-AFK)
+--------------------------------------------------
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+local Mouse = LocalPlayer:GetMouse()
+Mouse.Button1Down:Connect(function()
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and Mouse.Target then
+            hrp.CFrame = CFrame.new(Mouse.Hit.X, Mouse.Hit.Y + 3, Mouse.Hit.Z)
+        end
+    end
+end)
+
+-- ลูป Auto Attack (PVP)
+task.spawn(function()
+    while true do
+        if _G.AutoAttackRunning and hasTargetInFOV then
+            triggerAttack()
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- ลูป Auto เก็บกระสุน (PVP)
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if _G.AutoFarmAmmo and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local char = LocalPlayer.Character
+            local hrp = char.HumanoidRootPart
+            local currentAmmo, reserveAmmo, infoMsg = checkAmmoStatus()
+            
+            AmmoStatusLabel.Text = infoMsg
+            
+            if currentAmmo == 0 and reserveAmmo == 0 then
+                AmmoStatusLabel.Text = "หมดกระสุน (00/0)! กำลังไปจุดเก็บกระสุน..."
+                local originalCFrame = hrp.CFrame
+                
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.Anchored = false
+                
+                for i = 1, 5 do
+                    hrp.CFrame = targetAmmoCFrame
+                    task.wait(0.03)
+                end
+                
+                hrp.Anchored = true
+                
+                local function tryInteract()
+                    local found = false
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("ProximityPrompt") and v.Enabled then
+                            local promptPos = getPromptPosition(v)
+                            if promptPos then
+                                local distance = (promptPos - hrp.Position).Magnitude
+                                if distance <= ammoMaxDistance then
+                                    found = true
+                                    fireproximityprompt(v)
+                                end
+                            end
+                        end
+                    end
+                    return found
+                end
+
+                AmmoStatusLabel.Text = "กำลังเก็บกระสุน (รอบที่ 1)..."
+                tryInteract()
+                task.wait(0.6)
+
+                AmmoStatusLabel.Text = "กำลังเก็บกระสุน (รอบที่ 2)..."
+                tryInteract()
+                task.wait(0.6)
+                
+                hrp.Anchored = false
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                for i = 1, 5 do
+                    hrp.CFrame = originalCFrame
+                    task.wait(0.03)
+                end
+                
+                AmmoStatusLabel.Text = "เติมกระสุนเต็มแล้ว! กำลังกลับจุดเดิม..."
+                task.wait(2)
+            end
+        end
+    end
+end)
+
+-- ระบบระบบกินเนื้อ & กินพืช แบบวาร์ปไปแป๊บเดียวแล้วกลับ (BLINK SYSTEM)
+local EAT_CONFIG = {
+    SEARCH_RADIUS = 350.0,
+    STAY_DURATION = 0.35,
+    CYCLE_INTERVAL = 0.4,
+    STRICT_MEAT_KEYWORDS = {"carcass", "meat", "corpse", "deadbody", "ribs", "flesh"},
+    STRICT_HERB_KEYWORDS = {"bush", "plant", "grass", "foliage", "herb", "fern", "leaves", "berry", "shrub"}
+}
+
+local IsExecutingEatOrHerb = false
+
+local function IsLivingEntityOrMapDecor(instance: Instance): boolean
+    local ancestorModel = instance:FindFirstAncestorOfClass("Model")
+    if ancestorModel then
+        if Players:GetPlayerFromCharacter(ancestorModel) then return true end
+
+        local targetHumanoid = ancestorModel:FindFirstChildOfClass("Humanoid")
+        if targetHumanoid and targetHumanoid.Health > 0 then return true end
+
+        local pName = string.lower(ancestorModel.Name)
+        if pName:find("map") or pName:find("border") or pName:find("ocean") or pName:find("decor") then
+            return true
+        end
+    end
+    return false
+end
+
+local function ScanNearbyTarget(keywordsList): BasePart?
+    local targetNode: BasePart? = nil
+    local minDistance = EAT_CONFIG.SEARCH_RADIUS
+
+    pcall(function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not IsLivingEntityOrMapDecor(obj) then
+                local nameLower = string.lower(obj.Name)
+                local parentNameLower = obj.Parent and string.lower(obj.Parent.Name) or ""
+                local isMatch = false
+
+                for _, kw in ipairs(keywordsList) do
+                    if nameLower:find(kw) or parentNameLower:find(kw) then
+                        isMatch = true
+                        break
+                    end
+                end
+
+                if isMatch then
+                    local char = LocalPlayer.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local dist = (obj.Position - root.Position).Magnitude
+                        if dist < minDistance then
+                            minDistance = dist
+                            targetNode = obj
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    return targetNode
+end
+
+local function TriggerInteraction(targetPart: BasePart)
+    pcall(function()
+        local prompt = targetPart:FindFirstChildOfClass("ProximityPrompt") 
+            or (targetPart.Parent and targetPart.Parent:FindFirstChildOfClass("ProximityPrompt"))
+        
+        if prompt and typeof(fireproximityprompt) == "function" then
+            fireproximityprompt(prompt)
+        end
+
+        for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+            if remote:IsA("RemoteEvent") then
+                local rName = string.lower(remote.Name)
+                if rName:find("eat") or rName:find("bite") or rName:find("interact") 
+                   or rName:find("feed") or rName:find("consume") or rName:find("herb") or rName:find("graze") then
+                    
+                    remote:FireServer(targetPart)
+                    remote:FireServer(targetPart.Parent)
+                    remote:FireServer("Eat", targetPart)
+                    remote:FireServer("Herb", targetPart)
+                end
+            end
+        end
+    end)
+end
+
+local function PerformBlink(targetPart: BasePart)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if IsExecutingEatOrHerb or not root or not char then return end
+    IsExecutingEatOrHerb = true
+
+    pcall(function()
+        local storedCFrame = root.CFrame
+        local storedVelocity = root.AssemblyLinearVelocity
+
+        local tempNoclip = {}
+        for _, p in ipairs(char:GetChildren()) do
+            if p:IsA("BasePart") and p.CanCollide then
+                p.CanCollide = false
+                table.insert(tempNoclip, p)
+            end
+        end
+
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.CFrame = targetPart.CFrame * CFrame.new(0, 1.0, 0)
+
+        local startTime = tick()
+        while tick() - startTime < EAT_CONFIG.STAY_DURATION do
+            TriggerInteraction(targetPart)
+            task.wait(0.07)
+        end
+
+        root.CFrame = storedCFrame
+        root.AssemblyLinearVelocity = storedVelocity
+
+        for _, p in ipairs(tempNoclip) do
+            if p and p.Parent then p.CanCollide = true end
+        end
+    end)
+
+    IsExecutingEatOrHerb = false
+end
+
+-- ลูป Auto กินเนื้อ
+task.spawn(function()
+    while true do
+        task.wait(EAT_CONFIG.CYCLE_INTERVAL)
+        pcall(function()
+            if _G.AutoEatActive and not _G.AutoHerbActive then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if char and root and hum and hum.Health > 0 then
+                    local meatNode = ScanNearbyTarget(EAT_CONFIG.STRICT_MEAT_KEYWORDS)
+                    if meatNode then
+                        PerformBlink(meatNode)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ลูป Auto กินพืช
+task.spawn(function()
+    while true do
+        task.wait(EAT_CONFIG.CYCLE_INTERVAL)
+        pcall(function()
+            if _G.AutoHerbActive then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if char and root and hum and hum.Health > 0 then
+                    local herbNode = ScanNearbyTarget(EAT_CONFIG.STRICT_HERB_KEYWORDS)
+                    if herbNode then
+                        PerformBlink(herbNode)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ลูป ตรวจสอบเควสต์ (Fossils)
+task.spawn(function()
+    while task.wait(0.2) do
+        pcall(function()
+            local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+            local questsFrame = playerGui:FindFirstChild("GameUI") and playerGui.GameUI:FindFirstChild("QuestsFrame")
+            local detectedQuest = "None"
+            
+            if questsFrame then
+                for _, child in pairs(questsFrame:GetChildren()) do
+                    local textContent = ""
+                    for _, desc in pairs(child:GetDescendants()) do
+                        if desc:IsA("TextLabel") then
+                            textContent = textContent .. " " .. string.lower(desc.Text)
+                        end
+                    end
+                    
+                    if string.find(textContent, "drink water") then
+                        detectedQuest = "Drink"
+                        break
+                    elseif string.find(textContent, "rest") then
+                        detectedQuest = "Rest"
+                        break
+                    end
+                end
+            end
+            
+            _G.CurrentQuest = detectedQuest
+            
+            if detectedQuest == "Drink" then
+                QuestStatusLabel.Text = "เควสต์ปัจจุบัน: ดื่มน้ำ (Drink)"
+                QuestStatusLabel.TextColor3 = Color3.fromRGB(50, 150, 255)
+            elseif detectedQuest == "Rest" then
+                QuestStatusLabel.Text = "เควสต์ปัจจุบัน: พักผ่อน (Rest)"
+                QuestStatusLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+            else
+                QuestStatusLabel.Text = "เควสต์ปัจจุบัน: กำลังรอ..."
+                QuestStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+            end
+        end)
+    end
+end)
+
+-- ลูป Auto ดื่มน้ำ
+task.spawn(function()
+    while true do
+        if _G.AutoDrinkRunning then
+            pcall(function() 
+                game:GetService("ReplicatedStorage").Remotes.Character.CharacterFunctions:InvokeServer("Drink") 
+            end)
+            task.wait(0.8)
+        else
+            task.wait(0.2)
+        end
+    end
+end)
+
+-- ลูป Auto พักผ่อน
+task.spawn(function()
+    local restRemote = game:GetService("ReplicatedStorage").Remotes.Character.Rest
+    local isRestingActive = false
+    while true do
+        task.wait(0.3)
+        local shouldRest = _G.AutoRestRunning and (_G.CurrentQuest == "Rest")
+        if shouldRest and not isRestingActive then
+            pcall(function() restRemote:InvokeServer(true) end)
+            isRestingActive = true
+        elseif not shouldRest and isRestingActive then
+            pcall(function() restRemote:InvokeServer(false) end)
+            isRestingActive = false
+        end
+    end
+end)
+
+-- ตรวจสอบโซนเขียว
+local function IsThisZoneGreen(targetPos)
+    local isGreen = false
+    pcall(function()
+        local folder = game:GetService("Workspace").MapResources.Zones
+        for _, zoneObj in pairs(folder:GetChildren()) do
+            local core = zoneObj:FindFirstChild("LightCore")
+            if core and (core.Position - targetPos).Magnitude < 15 then
+                local color = core.Color
+                if color.R == 0 and color.G > 0.9 and color.B == 0 then isGreen = true end
+                break
+            end
+        end
+    end)
+    return isGreen
+end
+
+local ZonesList = {
+    Vector3.new(-144.54, -102.15, 1032.19),
+    Vector3.new(-617.92, 143.39, -1130.44),
+    Vector3.new(1449.99, 77.16, -677.59),
+    Vector3.new(276.03, 75.50, -1029.02),
+    Vector3.new(-513.23, 75.73, -430.79),
+    Vector3.new(1090.65, 66.03, 467.14),
+    Vector3.new(209.25, -32.79, -359.19),
+    Vector3.new(-170.20, 109.98, 388.42),
+    Vector3.new(-69.11, -61.16, -1493.54)
+}
+
+-- ลูป Auto ยึดโซน
+task.spawn(function()
+    while true do
+        if _G.AutoZoneRunning then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local safetyZone3CFrame = CFrame.new(1449.99, 77.16 + 5, -677.59)
+                for i = 1, #ZonesList do
+                    if not _G.AutoZoneRunning then break end
+                    local zonePos = ZonesList[i]
+                    local targetCFrame = CFrame.new(zonePos.X, zonePos.Y + 5, zonePos.Z)
+                    
+                    if not IsThisZoneGreen(zonePos) then
+                        hrp.CFrame = targetCFrame
+                        task.wait(0.05)
+                        local startTime = tick()
+                        while _G.AutoZoneRunning do
+                            if IsThisZoneGreen(zonePos) or (tick() - startTime >= 15) then break end
+                            local shakeX = math.sin(tick() * 8) * 0.35
+                            local shakeZ = math.cos(tick() * 8) * 0.35
+                            hrp.CFrame = targetCFrame * CFrame.new(shakeX, 0, shakeZ)
+                            hrp.Velocity = Vector3.new(0, 0, 0)
+                            task.wait(0.02)
+                        end
+                        task.wait(0.5)
+                    end
+                end
+                if hrp and _G.AutoZoneRunning then hrp.CFrame = safetyZone3CFrame end
+                task.wait(5)
+            else
+                task.wait(0.5)
+            end
+        else
+            task.wait(0.1)
+        end
+    end
+end)
+
+--------------------------------------------------
+-- 6. แอนิเมชันหน้าต่างโหลด (LOADING ANIMATION 0% -> 100%)
+--------------------------------------------------
+task.spawn(function()
+    local loadingSteps = {
+        {progress = 0.20, text = "กำลังเริ่มต้นระบบ UI..."},
+        {progress = 0.45, text = "กำลังโหลด Tab การเคลื่อนที่ & เทเลพอร์ต..."},
+        {progress = 0.70, text = "กำลังตั้งค่า ESP, PVP & Aimbot..."},
+        {progress = 0.90, text = "กำลังเปิดใช้งานระบบกินอัตโนมัติ & Logic..."},
+        {progress = 1.00, text = "โหลดสำเร็จ 100%!"}
+    }
+
+    for _, step in ipairs(loadingSteps) do
+        TweenService:Create(BarFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(step.progress, 0, 1, 0)}):Play()
+        PercentLabel.Text = math.floor(step.progress * 100) .. "%"
+        LoadingStatus.Text = step.text
+        task.wait(0.35)
+    end
+
+    task.wait(0.2)
+    local closeTween = TweenService:Create(LoadingScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+    closeTween:Play()
+    closeTween.Completed:Wait()
+    LoadingFrame:Destroy()
+
+    OpenBtn.Visible = true
+    MainFrame.Visible = true
+    TweenService:Create(MainScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
