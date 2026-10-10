@@ -1,0 +1,258 @@
+-- Primeval Earth - โดย 0painph10 (อัปเดต: แท็บ All + Auto Tap)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ลบเมนูเก่าทิ้งหากมีการรันซ้ำ
+if LocalPlayer.PlayerGui:FindFirstChild("By0painph10Menu") then
+    LocalPlayer.PlayerGui.By0painph10Menu:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "By0painph10Menu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer.PlayerGui
+
+-- ปุ่มเปิด-ปิดเมนู (มุมโค้ง + สไตล์นีออน)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 85, 0, 32)
+ToggleBtn.Position = UDim2.new(0.02, 0, 0.2, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 170)
+ToggleBtn.Text = "⚡ MENU"
+ToggleBtn.TextSize = 12
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleBtn
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(0, 255, 170)
+ToggleStroke.Thickness = 1.2
+ToggleStroke.Parent = ToggleBtn
+
+-- กรอบเมนูหลัก
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 320, 0, 480)
+MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(45, 45, 55)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
+
+-- แถบหัวข้อ
+local TitleFrame = Instance.new("Frame")
+TitleFrame.Size = UDim2.new(1, 0, 0, 48)
+TitleFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+TitleFrame.BorderSizePixel = 0
+TitleFrame.Parent = MainFrame
+
+local TitleFrameCorner = Instance.new("UICorner")
+TitleFrameCorner.CornerRadius = UDim.new(0, 10)
+TitleFrameCorner.Parent = TitleFrame
+
+local TitleFixer = Instance.new("Frame")
+TitleFixer.Size = UDim2.new(1, 0, 0, 10)
+TitleFixer.Position = UDim2.new(0, 0, 1, -10)
+TitleFixer.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+TitleFixer.BorderSizePixel = 0
+TitleFixer.Parent = TitleFrame
+
+-- โลโก้อักษร P
+local LogoBadge = Instance.new("Frame")
+LogoBadge.Size = UDim2.new(0, 32, 0, 32)
+LogoBadge.Position = UDim2.new(0, 10, 0.5, -16)
+LogoBadge.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
+LogoBadge.Parent = TitleFrame
+
+local LogoBadgeCorner = Instance.new("UICorner")
+LogoBadgeCorner.CornerRadius = UDim.new(1, 0)
+LogoBadgeCorner.Parent = LogoBadge
+
+local LogoGradient = Instance.new("UIGradient")
+LogoGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 170)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 255))
+})
+LogoGradient.Rotation = 45
+LogoGradient.Parent = LogoBadge
+
+local LogoP = Instance.new("TextLabel")
+LogoP.Size = UDim2.new(1, 0, 1, 0)
+LogoP.BackgroundTransparency = 1
+LogoP.TextColor3 = Color3.fromRGB(10, 10, 15)
+LogoP.Text = "P"
+LogoP.TextSize = 18
+LogoP.Font = Enum.Font.GothamBlack
+LogoP.Parent = LogoBadge
+
+-- ข้อความหัวข้อเมนู
+local TitleTextContainer = Instance.new("Frame")
+TitleTextContainer.Size = UDim2.new(1, -50, 1, 0)
+TitleTextContainer.Position = UDim2.new(0, 48, 0, 0)
+TitleTextContainer.BackgroundTransparency = 1
+TitleTextContainer.Parent = TitleFrame
+
+local MainTitle = Instance.new("TextLabel")
+MainTitle.Size = UDim2.new(1, 0, 0, 22)
+MainTitle.Position = UDim2.new(0, 0, 0, 5)
+MainTitle.BackgroundTransparency = 1
+MainTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+MainTitle.Text = "PRIMEVAL EARTH"
+MainTitle.TextSize = 13
+MainTitle.Font = Enum.Font.GothamBold
+MainTitle.TextXAlignment = Enum.TextXAlignment.Left
+MainTitle.Parent = TitleTextContainer
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, 0, 0, 15)
+SubTitle.Position = UDim2.new(0, 0, 0, 24)
+SubTitle.BackgroundTransparency = 1
+SubTitle.TextColor3 = Color3.fromRGB(0, 255, 170)
+SubTitle.Text = "BY 0PAINPH10"
+SubTitle.TextSize = 10
+SubTitle.Font = Enum.Font.GothamBold
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = TitleTextContainer
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- แถบเลือกแท็บ (4 แท็บ: Universal, Farm, All, TP)
+local TabContainer = Instance.new("Frame")
+TabContainer.Size = UDim2.new(1, -20, 0, 28)
+TabContainer.Position = UDim2.new(0, 10, 0, 55)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = MainFrame
+
+local function CreateTabBtn(name, posX)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.23, 0, 1, 0)
+    btn.Position = UDim2.new(posX, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    btn.TextColor3 = Color3.fromRGB(140, 140, 150)
+    btn.Text = name
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.Parent = TabContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+local UniversalTabBtn = CreateTabBtn("Universal", 0)
+local FarmTabBtn = CreateTabBtn("Farm", 0.25)
+local AllTabBtn = CreateTabBtn("All", 0.5)
+local TpTabBtn = CreateTabBtn("TP", 0.75)
+
+-- หน้าต่างแสดงผลแต่ละแท็บ
+local function CreatePage()
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, -20, 0, 375)
+    page.Position = UDim2.new(0, 10, 0, 90)
+    page.BackgroundTransparency = 1
+    page.ScrollBarThickness = 2
+    page.CanvasSize = UDim2.new(0, 0, 0, 600)
+    page.Visible = false
+    page.Parent = MainFrame
+    return page
+end
+
+local UniversalPage = CreatePage()
+UniversalPage.Visible = true
+UniversalTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+UniversalTabBtn.TextColor3 = Color3.fromRGB(0, 255, 170)
+
+local FarmPage = CreatePage()
+local AllPage = CreatePage()
+local TpPage = CreatePage()
+
+local function SwitchTab(activeBtn, activePage)
+    for _, btn in ipairs({UniversalTabBtn, FarmTabBtn, AllTabBtn, TpTabBtn}) do
+        btn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+        btn.TextColor3 = Color3.fromRGB(140, 140, 150)
+    end
+    for _, page in ipairs({UniversalPage, FarmPage, AllPage, TpPage}) do
+        page.Visible = false
+    end
+
+    activeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    activeBtn.TextColor3 = Color3.fromRGB(0, 255, 170)
+    activePage.Visible = true
+end
+
+UniversalTabBtn.MouseButton1Click:Connect(function() SwitchTab(UniversalTabBtn, UniversalPage) end)
+FarmTabBtn.MouseButton1Click:Connect(function() SwitchTab(FarmTabBtn, FarmPage) end)
+AllTabBtn.MouseButton1Click:Connect(function() SwitchTab(AllTabBtn, AllPage) end)
+TpTabBtn.MouseButton1Click:Connect(function() SwitchTab(TpTabBtn, TpPage) end)
+
+-- ตัวแปรตั้งค่าระบบ
+getgenv().InvisEnabled = false
+getgenv().NoclipEnabled = false
+getgenv().ScanHitboxEnabled = false
+getgenv().AutoOrbitEnabled = false
+getgenv().SpeedEnabled = false
+getgenv().WalkSpeedValue = 50
+getgenv().CustomOffset = 3.0
+getgenv().EspEnabled = false
+getgenv().flyEnabled = false
+getgenv().flySpeed = 50
+
+local att, lv, ag
+local targetPlayer = nil
+local selectedTpPlayer = nil
+
+_G.AutoEatRunning = false
+_G.AutoDrinkRunning = false
+_G.AutoRestRunning = false
+_G.AutoZoneRunning = false
+_G.CurrentQuest = "None"
+
+local function StyleButton(btn)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+end
+
+-- -------------------------------------------------------------------------
+-- แท็บ UNIVERSAL
+-- -------------------------------------------------------------------------
+local NoclipBtnUni = Instance.new("TextButton")
+NoclipBtnUni.Size = UDim2.new(1, 0, 0, 32)
+NoclipBtnUni.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+NoclipBtnUni.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoclipBtnUni.Text = "เดินทะลุกำแพง (Noclip): ปิด"
+NoclipBtnUni.Font = Enum.Font.GothamBold
+NoclipBtnUni.TextSize = 11
+NoclipBtnUni.Parent = UniversalPage
+StyleButton(NoclipBtnUni)
+
+local EspBtnUni = Instance.new("TextButton")
+EspBtnUni.
